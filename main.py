@@ -21,7 +21,7 @@ config = {
     "FAIL_SIZE": 10,
 }
 
-
+# find latest log file
 def get_latest_ui_log(path):
     file_dict = {}
     for file in os.listdir(path):
@@ -34,10 +34,7 @@ def get_latest_ui_log(path):
     return res, date
 
 
-# ^(\d+.\d+.\d+.\d+).+\[ $remote_addr $remote_user $http_x_real_ip
-# \[(.+)\] - [$time_local]
-# "GET\s(.+?") - "$request"
-# (\d.\d+)$
+# pattern finder in line of log file
 def get_requests_plain(line):
     pat = (r''
            '^(\d+.\d+.\d+.\d+).+\['
@@ -57,7 +54,7 @@ def get_requests_plain(line):
         return res
     return requests
 
-
+# Finder for function above
 def find(pat, line):
     match = re.findall(pat, line)
     if match:
@@ -66,13 +63,7 @@ def find(pat, line):
         logging.error("Error with parsing log file")
         return False
 
-
-# log_format ui_short '$remote_addr  $remote_user $http_x_real_ip [$remote_addr] "$request" '
-#                     '$status $body_bytes_sent "$http_referer" '
-#                     '"$http_user_agent" "$http_x_forwarded_for" "$http_X_REQUEST_ID" "$http_X_RB_USER" '
-#                     '$request_time';
-
-
+# Log processor. Load log file
 def process_logs(file_name):
     param_list = []
     total = processed = 0
@@ -97,7 +88,7 @@ def process_logs(file_name):
                     yield parsed_line, processed, total
 
 
-
+# getter nested item in list
 def get_nested_item(nlist):
     item = []
     for nitem in nlist:
@@ -106,11 +97,13 @@ def get_nested_item(nlist):
         return item
 
 
+# sort addon
 def keyfunc(tup):
     key, d = tup
     return d["time_sum"]
 
 
+# Big function for prepare report file
 def compute_log(file_name, report_size_count, fail_size):
     url = 2
     request_time = -1
@@ -169,6 +162,7 @@ def compute_log(file_name, report_size_count, fail_size):
     return d_out
 
 
+# create prepared report
 def create_output_report(path, date, input_data):
     logging.info("Creating output log...")
     date = datetime.strptime(date, "%Y%m%d")
@@ -186,6 +180,7 @@ def create_output_report(path, date, input_data):
         print("The latest log file is computed and report made.")
 
 
+# Config file parser
 def get_config(path):
     config_dict = {}
     flag_config = False
@@ -209,6 +204,7 @@ def get_config(path):
         return config_dict
 
 
+# Choiser parameters
 def arg_switcher(args_list):
     switcher = {
         1: "--report_size",
@@ -253,11 +249,9 @@ def main():
                         filemode='w',
                         format='[%(asctime)s] %(levelname).1s %(message)s',
                         datefmt='%Y.%m.%d %H:%M:%S')
-    logging.info(usage)
     print(usage)
     try:
         report_dir, log_dir, report_size, fail_size = arg_switcher(sys.argv)
-        print(report_dir, log_dir, report_size, fail_size)
         file_name, date = get_latest_ui_log(log_dir)
         computed_log = compute_log(file_name, report_size, fail_size)
         create_output_report(report_dir, date, computed_log)
