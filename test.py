@@ -10,11 +10,6 @@ class LogTest(unittest.TestCase):
     def test_get_latest_ui_log(self):
         self.assertEqual(main.get_latest_ui_log("./test_dir"), ('./test_dir/nginx-access-ui.log-20190630.gz', '20190630'))
 
-    def test_get_requests_gzip(self):
-        with gzip.open("./test_dir/nginx-access-ui.log-20190630.gz", mode="rb") as testfile:
-            line = testfile.readline()
-            self.assertIsInstance(main.get_requests_gzip(line), list)
-
     def test_get_requests_plain(self):
         with open("./test_dir/nginx-access-ui.log-20190629", mode="r") as testfile:
             line = testfile.readline()
@@ -39,17 +34,17 @@ class LogTest(unittest.TestCase):
 
     def test_create_output_report(self):
         path = "./test"
-        self.assertEqual(os.path.exists(path), False)
+        self.assertEqual(os.path.exists(path), True)
         date = "20170723"
         file_name = path + '/report-' + "2017.07.23" + '.html'
-        self.assertEqual(os.path.isfile(file_name), False)
+        self.assertEqual(os.path.isfile(file_name), True)
         main.create_output_report(path, date, "sdasdasd")
         self.assertEqual(os.path.isfile(file_name), True)
 
     def test_get_config(self):
         test_dict = main.get_config("./test_dir/config.conf")
         self.assertIsInstance(test_dict, dict)
-        self.assertEqual(len(test_dict), 4)
+        self.assertEqual(len(test_dict), 3)
         self.assertEqual(int(test_dict["report_size"]), 100)
 
     def test_arg_switcher(self):
@@ -72,5 +67,5 @@ class LogTest(unittest.TestCase):
             "--fail_size": 10,
             "--config": "./test_dir/config.conf"
         }
-        self.assertEqual(main.arg_switcher(switcher), ('"./test_dir"\n', '"./test_dir"\n', '100\n', '10'))
+        self.assertEqual(main.arg_switcher(switcher), ('./test_dir', './test_dir', '100', '10'))
 

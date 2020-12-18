@@ -21,6 +21,7 @@ config = {
     "FAIL_SIZE": 10,
 }
 
+
 # find latest log file
 def get_latest_ui_log(path):
     file_dict = {}
@@ -111,9 +112,8 @@ def compute_log(file_name, report_size_count, fail_size):
     fail_size = int(fail_size)
     gr = process_logs(file_name)
     count = sum_request_time = max_time = all_sum_request_time = tmp_max_time = time_med = 0.0
-    d = {}
     d_out = []
-    distinct_dict = {}
+    d=distinct_dict = {}
     param_list = [*gr]
     list_length = len(param_list)
     temp_time_list = []
