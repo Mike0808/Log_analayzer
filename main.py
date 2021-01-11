@@ -51,9 +51,10 @@ def get_requests_plain(line):
            '(\d.\d+)')
     requests = find(pat, line)
     if requests:
-        res = get_nested_item(requests)
+        res = list(*requests)
         return res
     return requests
+
 
 # Finder for function above
 def find(pat, line):
@@ -63,6 +64,7 @@ def find(pat, line):
     else:
         logging.error("Error with parsing log file")
         return False
+
 
 # Log processor. Load log file
 def process_logs(file_name):
@@ -74,6 +76,7 @@ def process_logs(file_name):
             for line in log_file:
                 line = str(line, 'utf-8')
                 parsed_line = get_requests_plain(line)
+                print(parsed_line)
                 total += 1
                 if parsed_line:
                     processed += 1
@@ -89,48 +92,45 @@ def process_logs(file_name):
                     yield parsed_line, processed, total
 
 
-# getter nested item in list
-def get_nested_item(nlist):
-    item = []
-    for nitem in nlist:
-        for idx in range(len(nitem)):
-            item.append(nitem[idx])
-        return item
-
-
 # sort addon
 def keyfunc(tup):
     key, d = tup
     return d["time_sum"]
 
 
-# Big function for prepare report file
-def compute_log(file_name, report_size_count, fail_size):
-    url = 2
-    request_time = -1
-    report_size_count = int(report_size_count)
-    fail_size = int(fail_size)
+def param_former(file_name, fail_size):
     gr = process_logs(file_name)
-    count = sum_request_time = max_time = all_sum_request_time = tmp_max_time = time_med = 0.0
-    d_out = []
-    d=distinct_dict = {}
     param_list = [*gr]
-    list_length = len(param_list)
-    temp_time_list = []
-    logging.info("Starting compute logs data...", exc_info=True)
-    distinct_dict = {x[0][2]: x[0] for x in param_list}
-    distinct_list = list(distinct_dict.keys())
-    distinct_length = len(distinct_dict.keys())
-    processed = param_list[-1][-2]
-    total = param_list[-1][-1]
-    fault_total = total - processed
-    perc_fault = (fault_total * 100) / list_length
+    distinct_set = {x[0][2]: [x[0], x[1], x[2]] for x in param_list}
+    distinct_list = list(distinct_set.keys())
+    distinct_length = len(distinct_set.keys())
+    lp = list(distinct_set.values())
+    total_lines = lp[-1][-1]
+    processed_lines = lp[-1][-2]
+    fault_total = total_lines - processed_lines
+    perc_fault = (fault_total * 100) / total_lines
     if perc_fault > fail_size:
         logging.error("Exceeded bound of log parsing fail... Exit")
         exit()
+    return \
+        param_list, \
+        distinct_list, \
+        distinct_length, \
+        total_lines, \
+        processed_lines
+
+
+# Big function for prepare report file
+def compute_log(param_list, distinct_list, distinct_length, total_lines):
+    url = 2
+    request_time = -1
+    count = sum_request_time = max_time = all_sum_request_time = tmp_max_time = time_med = 0.0
+    d = {}
+    temp_time_list = []
+    logging.info("Starting compute logs data...", exc_info=True)
     for idi in range(distinct_length):
         all_sum_request_time += float(param_list[idi][0][request_time])
-        for idj in range(list_length):
+        for idj in range(total_lines):
             if distinct_list[idi] in param_list[idj][0]:
                 count += 1
                 sum_request_time += float(param_list[idj][0][request_time])
@@ -142,7 +142,7 @@ def compute_log(file_name, report_size_count, fail_size):
         else:
             time_med = round((float(temp_time_list[round(count / 2)]) +
                               float(temp_time_list[round(count / 2) - 1])) / 2, 3)
-        d[distinct_list[idi]] = {'url': param_list[idi][0][url], 'count_perc': (count * 100) / list_length,
+        d[distinct_list[idi]] = {'url': param_list[idi][0][url], 'count_perc': (count * 100) / total_lines,
                                  'count': count, 'time_sum': sum_request_time,
                                  'time_max': max_time, 'time_perc': (max_time * 100) / all_sum_request_time,
                                  'time_avg': sum_request_time / count, 'time_med': time_med}
@@ -151,14 +151,20 @@ def compute_log(file_name, report_size_count, fail_size):
         time_med = 0.0
         count = 0
         temp_time_list.clear()
-    d_sorted = sorted(d.items(), key=keyfunc, reverse=True)
+    return d
+
+
+def sort_dict(unsorted_dict, report_size_count):
+    d_out = []
+    report_size_count = int(report_size_count)
+    d_sorted = sorted(unsorted_dict.items(), key=keyfunc, reverse=True)
     if report_size_count > len(d_sorted):
         report_size_count = len(d_sorted)
         print("Line count of log less then your request... Taked max count is {}".format(report_size_count))
         logging.error("Line count of log less then your request...", exc_info=True)
     for idx in range(report_size_count):
         d_out.append(d_sorted[idx][1])
-    logging.info("Compute log finished...")
+    logging.info("Compute and sort log finished...")
     return d_out
 
 
@@ -253,8 +259,11 @@ def main():
     try:
         report_dir, log_dir, report_size, fail_size = arg_switcher(sys.argv)
         file_name, date = get_latest_ui_log(log_dir)
-        computed_log = compute_log(file_name, report_size, fail_size)
-        create_output_report(report_dir, date, computed_log)
+        param_list, distinct_list, distinct_length, total_lines, processed_lines = \
+            param_former(file_name, fail_size)
+        computed_log = compute_log(param_list, distinct_list, distinct_length, total_lines)
+        sorted_dict = sort_dict(computed_log, report_size)
+        create_output_report(report_dir, date, sorted_dict)
     except Exception as e:
         logging.exception("Exception occurred", exc_info=True)
 
