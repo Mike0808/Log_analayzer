@@ -30,16 +30,6 @@ in this text you may see how usage utility:
                         specify fail size - this is a parse fail in % following which program will stop with error. Default 3
                         and log - you can specify log file for save logs.
 
-Config file must be like:  
-
-[config]
-log_dir= 
-report_dir=
-report_size=
-fail_size=
-
-When parsing and computing log file will accomplished you can open report in html.
-
 
 RUN EXAMPLES:
 1. main.py --logdir ./test --reportdir ./reports --reportsize 10 --failsize 3 --log app.log
